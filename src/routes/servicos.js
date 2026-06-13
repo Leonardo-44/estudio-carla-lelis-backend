@@ -22,8 +22,8 @@ router.post('/', requireAdmin, async (req, res) => {
   const { nome, descricao, preco, duracao } = req.body;
 
   if (!nome || !preco) {
-    return res.status(400).json({ message: 'Nome e preço são obrigatórios' });
-  }
+  return res.status(400).json({ message: 'Nome e preço são obrigatórios' });
+}
 
   try {
     const result = await pool.query(
