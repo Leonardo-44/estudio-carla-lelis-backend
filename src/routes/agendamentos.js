@@ -20,8 +20,8 @@ router.get('/', requireAdmin, async (req, res) => {
         s.preco AS servico_preco,
         s.id    AS servico_id
       FROM agendamentos a
-      JOIN usuarios u ON u.id = a.usuario_id
-      JOIN servicos  s ON s.id = a.servico_id
+      JOIN users u ON u.id = a.usuario_id
+      JOIN services  s ON s.id = a.servico_id
       ORDER BY a.data_hora DESC
     `);
     res.json(result.rows);
@@ -45,7 +45,7 @@ router.get('/meus', async (req, res) => {
         s.preco AS servico_preco,
         s.id    AS servico_id
       FROM agendamentos a
-      JOIN servicos s ON s.id = a.servico_id
+      JOIN services s ON s.id = a.servico_id
       WHERE a.usuario_id = $1
       ORDER BY a.data_hora DESC
     `, [req.user.id]);

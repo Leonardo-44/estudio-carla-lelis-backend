@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, nome, descricao, preco, duracao FROM servicos WHERE ativo = TRUE ORDER BY nome'
+      'SELECT id, nome, descricao, preco, duracao FROM services WHERE ativo = TRUE ORDER BY nome'
     );
     res.json(result.rows);
   } catch (error) {
@@ -27,7 +27,7 @@ router.post('/', requireAdmin, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO servicos (nome, descricao, preco, duracao)
+      `INSERT INTO services (nome, descricao, preco, duracao)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
       [nome, descricao || null, preco, duracao || 60]
@@ -46,7 +46,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `UPDATE servicos
+      `UPDATE services
        SET nome = COALESCE($1, nome),
            descricao = COALESCE($2, descricao),
            preco = COALESCE($3, preco),
@@ -73,7 +73,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
-    await pool.query('UPDATE servicos SET ativo = FALSE WHERE id = $1', [id]);
+    await pool.query('UPDATE services SET ativo = FALSE WHERE id = $1', [id]);
     res.json({ message: 'Serviço desativado' });
   } catch (error) {
     console.error('Erro ao desativar serviço:', error);
