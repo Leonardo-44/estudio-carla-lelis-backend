@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
   try {
     // Verifica se telefone já existe
     const existe = await pool.query(
-      'SELECT id FROM usuarios WHERE telefone = $1',
+      'SELECT id FROM users WHERE telefone = $1',
       [telefone.trim()]
     );
     if (existe.rows.length > 0) {
@@ -35,7 +35,7 @@ router.post('/register', async (req, res) => {
     const userRole = 'cliente'; // Cadastro público sempre cria cliente
 
     const result = await pool.query(
-      `INSERT INTO usuarios (nome, telefone, senha_hash, role)
+      `INSERT INTO users (nome, telefone, senha_hash, role)
        VALUES ($1, $2, $3, $4)
        RETURNING id, nome, telefone, role`,
       [nome.trim(), telefone.trim(), senha_hash, userRole]
@@ -66,7 +66,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT * FROM usuarios WHERE telefone = $1',
+      'SELECT * FROM users WHERE telefone = $1',
       [telefone.trim()]
     );
 
@@ -107,7 +107,7 @@ router.post('/login', async (req, res) => {
 router.get('/verify', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, nome, telefone, role FROM usuarios WHERE id = $1',
+      'SELECT id, nome, telefone, role FROM users WHERE id = $1',
       [req.user.id]
     );
 
