@@ -7,9 +7,12 @@ const router = express.Router();
 // ─── GET /api/servicos — lista todos os ativos ────────────────
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT id, nome, descricao, preco, duracao FROM services WHERE ativo = TRUE ORDER BY nome'
-    );
+    const todos = req.query.todos === 'true';
+    const query = todos
+      ? 'SELECT id, nome, descricao, preco, duracao, ativo FROM services ORDER BY nome'
+      : 'SELECT id, nome, descricao, preco, duracao, ativo FROM services WHERE ativo = TRUE ORDER BY nome';
+
+    const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao buscar serviços:', error);
