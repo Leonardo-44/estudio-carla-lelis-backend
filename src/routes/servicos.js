@@ -68,16 +68,21 @@ router.put('/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// ─── DELETE /api/servicos/:id — admin desativa serviço ───────
+// ─── DELETE /api/servicos/:id — admin exclui serviço ───────
 router.delete('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-
   try {
-    await pool.query('UPDATE services SET ativo = FALSE WHERE id = $1', [id]);
-    res.json({ message: 'Serviço desativado' });
+    const result = await pool.query(
+      'DELETE FROM services WHERE id = $1 RETURNING *',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Serviço não encontrado' });
+    }
+    res.json({ message: 'Serviço excluído com sucesso' });
   } catch (error) {
-    console.error('Erro ao desativar serviço:', error);
-    res.status(500).json({ message: 'Erro ao desativar serviço' });
+    console.error('Erro ao excluir serviço:', error);
+    res.status(500).json({ message: 'Erro ao excluir serviço' });
   }
 });
 
