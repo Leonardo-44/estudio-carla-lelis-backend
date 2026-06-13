@@ -45,21 +45,32 @@ router.put('/:id', requireAdmin, async (req, res) => {
   const { nome, descricao, preco, duracao, ativo } = req.body;
 
   try {
-    const result = await pool.query(
-      `UPDATE services
-       SET nome = COALESCE($1, nome),
-           descricao = COALESCE($2, descricao),
-           preco = COALESCE($3, preco),
-           duracao = COALESCE($4, duracao),
-           ativo = COALESCE($5, ativo)
-       WHERE id = $6
-       RETURNING *`,
-      [nome, descricao, preco, duracao, ativo, id]
-    );
-
-    if (result.rows.length === 0) {
+    // Busca o serviço atual primeiro
+    const atual = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
+    if (atual.rows.length === 0) {
       return res.status(404).json({ message: 'Serviço não encontrado' });
     }
+
+    const s = atual.rows[0];
+
+    const result = await pool.query(
+      `UPDATE services
+       SET nome = $1,
+           descricao = $2,
+           preco = $3,
+           duracao = $4,
+           ativo = $5
+       WHERE id = $6
+       RETURNING *`,
+      [
+        nome      ?? s.nome,
+        descricao ?? s.descricao,
+        preco     ?? s.preco,
+        duracao   ?? s.duracao,
+        ativo     ?? s.ativo,
+        id
+      ]
+    );
 
     res.json(result.rows[0]);
   } catch (error) {
