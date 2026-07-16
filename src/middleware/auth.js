@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ message: 'Token não fornecido' });
@@ -24,4 +24,12 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authenticateToken, requireAdmin };
+// Admin OU funcionária podem acessar (ex: ver agenda do dia)
+function requireStaff(req, res, next) {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'funcionaria') {
+    return res.status(403).json({ message: 'Acesso restrito à equipe' });
+  }
+  next();
+}
+
+module.exports = { authenticateToken, requireAdmin, requireStaff };
