@@ -6,6 +6,7 @@ const router = express.Router();
 
 // ─── GET /api/agendamentos/horarios-ocupados ─────────────────
 // ANTES das rotas com :id
+// (mantido como estava por enquanto — ajustamos junto com o front)
 router.get('/horarios-ocupados', async (req, res) => {
   const { data } = req.query;
 
@@ -134,6 +135,18 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    // Busca duração e capacidade do serviço
+    const servicoResult = await pool.query(
+      'SELECT duracao, capacidade_simultanea FROM services WHERE id = $1',
+      [servico_id]
+    );
+
+    if (servicoResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Serviço não encontrado.' });
+    }
+
+    const { duracao, capacidade_simultanea } = servicoResult.rows[0];
+
     // Se veio funcionaria_id, valida que ela realmente faz esse serviço
     if (funcionaria_id) {
       const vinculo = await pool.query(`
@@ -146,20 +159,28 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Conflito agora é POR FUNCIONÁRIA (não global).
-    // Se não houver funcionaria_id definida, mantém checagem global
-    // pra não sobrepor um horário "sem dono" com outro igual.
-    const conflito = funcionaria_id
-      ? await pool.query(`
-          SELECT id FROM agendamentos
-          WHERE data_hora = $1 AND funcionaria_id = $2 AND status != 'cancelado'
-        `, [data_hora, funcionaria_id])
-      : await pool.query(`
-          SELECT id FROM agendamentos
-          WHERE data_hora = $1 AND funcionaria_id IS NULL AND status != 'cancelado'
-        `, [data_hora]);
+    // Conta quantos agendamentos ATIVOS do MESMO serviço, da MESMA funcionária
+    // (ou sem funcionária definida, se for o caso), SE SOBREPÕEM ao intervalo
+    // [data_hora, data_hora + duracao) deste novo agendamento.
+    // Usa a duração de cada agendamento existente conforme o serviço dele
+    // (join com services) pra calcular o intervalo ocupado por cada um.
+    const conflito = await pool.query(`
+      SELECT COUNT(*) AS total
+      FROM agendamentos a
+      JOIN services s ON s.id = a.servico_id
+      WHERE a.status != 'cancelado'
+        AND a.servico_id = $1
+        AND (
+          ($2::int IS NOT NULL AND a.funcionaria_id = $2::int)
+          OR ($2::int IS NULL AND a.funcionaria_id IS NULL)
+        )
+        AND (a.data_hora, a.data_hora + (s.duracao || ' minutes')::interval)
+            OVERLAPS ($3::timestamptz, $3::timestamptz + ($4 || ' minutes')::interval)
+    `, [servico_id, funcionaria_id || null, data_hora, duracao]);
 
-    if (conflito.rows.length > 0) {
+    const totalOcupado = parseInt(conflito.rows[0].total, 10);
+
+    if (totalOcupado >= capacidade_simultanea) {
       return res.status(409).json({ message: 'Horário já reservado. Escolha outro horário.' });
     }
 

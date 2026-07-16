@@ -9,8 +9,8 @@ router.get('/', async (req, res) => {
   try {
     const todos = req.query.todos === 'true';
     const query = todos
-      ? 'SELECT id, nome, descricao, preco, duracao, ativo FROM services ORDER BY nome'
-      : 'SELECT id, nome, descricao, preco, duracao, ativo FROM services WHERE ativo = TRUE ORDER BY nome';
+      ? 'SELECT id, nome, descricao, preco, duracao, capacidade_simultanea, ativo FROM services ORDER BY nome'
+      : 'SELECT id, nome, descricao, preco, duracao, capacidade_simultanea, ativo FROM services WHERE ativo = TRUE ORDER BY nome';
 
     const result = await pool.query(query);
     res.json(result.rows);
@@ -22,18 +22,22 @@ router.get('/', async (req, res) => {
 
 // ─── POST /api/servicos — admin cria serviço ─────────────────
 router.post('/', requireAdmin, async (req, res) => {
-  const { nome, descricao, preco, duracao } = req.body;
+  const { nome, descricao, preco, duracao, capacidade_simultanea } = req.body;
 
   if (!nome || !preco) {
-  return res.status(400).json({ message: 'Nome e preço são obrigatórios' });
-}
+    return res.status(400).json({ message: 'Nome e preço são obrigatórios' });
+  }
+
+  if (capacidade_simultanea !== undefined && capacidade_simultanea < 1) {
+    return res.status(400).json({ message: 'Capacidade simultânea deve ser pelo menos 1' });
+  }
 
   try {
     const result = await pool.query(
-      `INSERT INTO services (nome, descricao, preco, duracao)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO services (nome, descricao, preco, duracao, capacidade_simultanea)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [nome, descricao || null, preco, duracao || 60]
+      [nome, descricao || null, preco, duracao || 60, capacidade_simultanea || 1]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -45,7 +49,11 @@ router.post('/', requireAdmin, async (req, res) => {
 // ─── PUT /api/servicos/:id — admin edita serviço ─────────────
 router.put('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { nome, descricao, preco, duracao, ativo } = req.body;
+  const { nome, descricao, preco, duracao, capacidade_simultanea, ativo } = req.body;
+
+  if (capacidade_simultanea !== undefined && capacidade_simultanea < 1) {
+    return res.status(400).json({ message: 'Capacidade simultânea deve ser pelo menos 1' });
+  }
 
   try {
     // Busca o serviço atual primeiro
@@ -62,15 +70,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
            descricao = $2,
            preco = $3,
            duracao = $4,
-           ativo = $5
-       WHERE id = $6
+           capacidade_simultanea = $5,
+           ativo = $6
+       WHERE id = $7
        RETURNING *`,
       [
-        nome      ?? s.nome,
-        descricao ?? s.descricao,
-        preco     ?? s.preco,
-        duracao   ?? s.duracao,
-        ativo     ?? s.ativo,
+        nome                  ?? s.nome,
+        descricao             ?? s.descricao,
+        preco                 ?? s.preco,
+        duracao               ?? s.duracao,
+        capacidade_simultanea ?? s.capacidade_simultanea,
+        ativo                 ?? s.ativo,
         id
       ]
     );
