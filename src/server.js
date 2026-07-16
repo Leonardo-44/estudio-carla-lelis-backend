@@ -5,6 +5,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const servicosRoutes = require('./routes/servicos');
 const agendamentosRoutes = require('./routes/agendamentos');
+const usersRoutes = require('./routes/users');
 const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 // ─── Rotas protegidas ────────────────────────────────────────
 app.use('/api/servicos', authenticateToken, servicosRoutes);
 app.use('/api/agendamentos', authenticateToken, agendamentosRoutes);
+app.use('/api/users', authenticateToken, usersRoutes);
 
 // ─── Health check ────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

@@ -110,4 +110,91 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+router.get('/:id/funcionarias', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.nome, u.telefone
+       FROM funcionaria_servicos fs
+       JOIN users u ON u.id = fs.funcionaria_id
+       WHERE fs.servico_id = $1 AND u.role = 'funcionaria'
+       ORDER BY u.nome`,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar funcionárias do serviço:', error);
+    res.status(500).json({ message: 'Erro ao buscar funcionárias do serviço' });
+  }
+});
+
+// ─── GET /api/servicos/:id/funcionarias — lista funcionárias que fazem esse serviço ───
+router.post('/:id/funcionarias', requireAdmin, async (req, res) => {
+  const { id } = req.params; // servico_id
+  const { funcionaria_id } = req.body;
+
+  if (!funcionaria_id) {
+    return res.status(400).json({ message: 'funcionaria_id é obrigatório' });
+  }
+
+  try {
+    // Confirma que o serviço existe
+    const servico = await pool.query('SELECT id FROM services WHERE id = $1', [id]);
+    if (servico.rows.length === 0) {
+      return res.status(404).json({ message: 'Serviço não encontrado' });
+    }
+
+    // Confirma que o usuário existe e é funcionária
+    const funcionaria = await pool.query(
+      `SELECT id FROM users WHERE id = $1 AND role = 'funcionaria'`,
+      [funcionaria_id]
+    );
+    if (funcionaria.rows.length === 0) {
+      return res.status(404).json({ message: 'Funcionária não encontrada' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO funcionaria_servicos (funcionaria_id, servico_id)
+       VALUES ($1, $2)
+       ON CONFLICT (funcionaria_id, servico_id) DO NOTHING
+       RETURNING *`,
+      [funcionaria_id, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(409).json({ message: 'Funcionária já vinculada a esse serviço' });
+    }
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao vincular funcionária:', error);
+    res.status(500).json({ message: 'Erro ao vincular funcionária ao serviço' });
+  }
+});
+
+// ─── DELETE /api/servicos/:id/funcionarias/:funcionaria_id — desvincula ───
+router.delete('/:id/funcionarias/:funcionaria_id', requireAdmin, async (req, res) => {
+  const { id, funcionaria_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM funcionaria_servicos
+       WHERE servico_id = $1 AND funcionaria_id = $2
+       RETURNING *`,
+      [id, funcionaria_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Vínculo não encontrado' });
+    }
+
+    res.json({ message: 'Funcionária desvinculada do serviço com sucesso' });
+  } catch (error) {
+    console.error('Erro ao desvincular funcionária:', error);
+    res.status(500).json({ message: 'Erro ao desvincular funcionária do serviço' });
+  }
+});
+
 module.exports = router;
