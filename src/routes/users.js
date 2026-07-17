@@ -10,7 +10,7 @@ const SALT_ROUNDS = 10;
 router.get('/funcionarias', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, nome, telefone FROM users WHERE role = 'funcionaria' ORDER BY nome`
+      `SELECT id, nome, telefone, dia_folga FROM users WHERE role = 'funcionaria' ORDER BY nome`
     );
     res.json(result.rows);
   } catch (error) {
@@ -21,13 +21,16 @@ router.get('/funcionarias', requireAdmin, async (req, res) => {
 
 // ─── POST /api/users/funcionarias — cria nova ─────────────────
 router.post('/funcionarias', requireAdmin, async (req, res) => {
-  const { nome, telefone, senha } = req.body;
+  const { nome, telefone, senha, dia_folga } = req.body;
 
   if (!nome || !telefone || !senha) {
     return res.status(400).json({ message: 'Nome, telefone e senha são obrigatórios' });
   }
   if (senha.length < 6) {
     return res.status(400).json({ message: 'A senha deve ter pelo menos 6 caracteres' });
+  }
+  if (dia_folga !== undefined && dia_folga !== null && (dia_folga < 0 || dia_folga > 6)) {
+    return res.status(400).json({ message: 'Dia de folga inválido' });
   }
 
   try {
@@ -39,10 +42,10 @@ router.post('/funcionarias', requireAdmin, async (req, res) => {
     const senha_hash = await bcrypt.hash(senha, SALT_ROUNDS);
 
     const result = await pool.query(
-      `INSERT INTO users (nome, telefone, senha_hash, role)
-       VALUES ($1, $2, $3, 'funcionaria')
-       RETURNING id, nome, telefone, role`,
-      [nome.trim(), telefone.trim(), senha_hash]
+      `INSERT INTO users (nome, telefone, senha_hash, role, dia_folga)
+       VALUES ($1, $2, $3, 'funcionaria', $4)
+       RETURNING id, nome, telefone, role, dia_folga`,
+      [nome.trim(), telefone.trim(), senha_hash, dia_folga ?? null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -55,7 +58,11 @@ router.post('/funcionarias', requireAdmin, async (req, res) => {
 // ─── PUT /api/users/funcionarias/:id — edita ──────────────────
 router.put('/funcionarias/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { nome, telefone, senha } = req.body;
+  const { nome, telefone, senha, dia_folga } = req.body;
+
+  if (dia_folga !== undefined && dia_folga !== null && (dia_folga < 0 || dia_folga > 6)) {
+    return res.status(400).json({ message: 'Dia de folga inválido' });
+  }
 
   try {
     const atual = await pool.query(
@@ -87,10 +94,16 @@ router.put('/funcionarias/:id', requireAdmin, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users
-       SET nome = $1, telefone = $2, senha_hash = $3
-       WHERE id = $4
-       RETURNING id, nome, telefone, role`,
-      [nome?.trim() ?? u.nome, telefone?.trim() ?? u.telefone, senha_hash, id]
+       SET nome = $1, telefone = $2, senha_hash = $3, dia_folga = $4
+       WHERE id = $5
+       RETURNING id, nome, telefone, role, dia_folga`,
+      [
+        nome?.trim() ?? u.nome,
+        telefone?.trim() ?? u.telefone,
+        senha_hash,
+        dia_folga !== undefined ? dia_folga : u.dia_folga,
+        id
+      ]
     );
 
     res.json(result.rows[0]);

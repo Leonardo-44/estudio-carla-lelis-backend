@@ -115,7 +115,7 @@ router.get('/:id/funcionarias', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT u.id, u.nome, u.telefone
+      `SELECT u.id, u.nome, u.telefone, u.dia_folga
        FROM funcionaria_servicos fs
        JOIN users u ON u.id = fs.funcionaria_id
        WHERE fs.servico_id = $1 AND u.role = 'funcionaria'
