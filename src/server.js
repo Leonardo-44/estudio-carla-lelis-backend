@@ -10,11 +10,12 @@ const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 
+const FRONTEND_URL = process.env.FRONTEND_URL?.replace(/\/$/, '');
+
 const allowedOrigins = [
   'http://localhost:5173',
-  process.env.FRONTEND_URL
+  FRONTEND_URL
 ].filter(Boolean);
-
 // ─── Middlewares ─────────────────────────────────────────────
 app.use(cors({
   origin: function (origin, callback) {
