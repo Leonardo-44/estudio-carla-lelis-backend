@@ -6,12 +6,14 @@ const { requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 const SALT_ROUNDS = 10;
 
-// ─── GET /api/users/funcionarias — lista todas ────────────────
+// ─── GET /api/users/funcionarias — lista todas (inclui a dona/admin) ──
 router.get('/funcionarias', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, nome, telefone, dia_folga, hora_inicio, hora_fim
-       FROM users WHERE role = 'funcionaria' ORDER BY nome`
+      `SELECT id, nome, telefone, dia_folga, hora_inicio, hora_fim, role
+       FROM users
+       WHERE role IN ('funcionaria', 'admin')
+       ORDER BY (role = 'admin') DESC, nome`
     );
     res.json(result.rows);
   } catch (error) {
@@ -20,7 +22,7 @@ router.get('/funcionarias', requireAdmin, async (req, res) => {
   }
 });
 
-// ─── POST /api/users/funcionarias — cria nova ─────────────────
+// ─── POST /api/users/funcionarias — cria nova (sempre role funcionaria) ──
 router.post('/funcionarias', requireAdmin, async (req, res) => {
   const { nome, telefone, senha, dia_folga, hora_inicio, hora_fim } = req.body;
 
@@ -63,7 +65,7 @@ router.post('/funcionarias', requireAdmin, async (req, res) => {
   }
 });
 
-// ─── PUT /api/users/funcionarias/:id — edita ──────────────────
+// ─── PUT /api/users/funcionarias/:id — edita (só funcionárias, não a dona) ──
 router.put('/funcionarias/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { nome, telefone, senha, dia_folga, hora_inicio, hora_fim } = req.body;
@@ -130,7 +132,7 @@ router.put('/funcionarias/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// ─── DELETE /api/users/funcionarias/:id — exclui ──────────────
+// ─── DELETE /api/users/funcionarias/:id — exclui (só funcionárias, não a dona) ──
 router.delete('/funcionarias/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {

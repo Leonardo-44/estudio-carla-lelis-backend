@@ -56,7 +56,6 @@ router.put('/:id', requireAdmin, async (req, res) => {
   }
 
   try {
-    // Busca o serviço atual primeiro
     const atual = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
     if (atual.rows.length === 0) {
       return res.status(404).json({ message: 'Serviço não encontrado' });
@@ -110,6 +109,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── GET /api/servicos/:id/funcionarias — lista quem faz esse serviço (inclui a dona) ──
 router.get('/:id/funcionarias', async (req, res) => {
   const { id } = req.params;
 
@@ -130,9 +130,9 @@ router.get('/:id/funcionarias', async (req, res) => {
   }
 });
 
-// ─── GET /api/servicos/:id/funcionarias — lista funcionárias que fazem esse serviço ───
+// ─── POST /api/servicos/:id/funcionarias — vincula profissional (funcionária ou dona) ──
 router.post('/:id/funcionarias', requireAdmin, async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // servico_id
   const { funcionaria_id } = req.body;
 
   if (!funcionaria_id) {
