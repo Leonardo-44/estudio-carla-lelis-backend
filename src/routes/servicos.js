@@ -115,11 +115,11 @@ router.get('/:id/funcionarias', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT u.id, u.nome, u.telefone, u.dia_folga, u.hora_inicio, u.hora_fim
+      `SELECT u.id, u.nome, u.telefone, u.dia_folga, u.hora_inicio, u.hora_fim, u.role
        FROM funcionaria_servicos fs
        JOIN users u ON u.id = fs.funcionaria_id
-       WHERE fs.servico_id = $1 AND u.role = 'funcionaria'
-       ORDER BY u.nome`,
+       WHERE fs.servico_id = $1 AND u.role IN ('funcionaria', 'admin')
+       ORDER BY (u.role = 'admin') DESC, u.nome`,
       [id]
     );
 
@@ -132,7 +132,7 @@ router.get('/:id/funcionarias', async (req, res) => {
 
 // ─── GET /api/servicos/:id/funcionarias — lista funcionárias que fazem esse serviço ───
 router.post('/:id/funcionarias', requireAdmin, async (req, res) => {
-  const { id } = req.params; // servico_id
+  const { id } = req.params;
   const { funcionaria_id } = req.body;
 
   if (!funcionaria_id) {
@@ -140,19 +140,18 @@ router.post('/:id/funcionarias', requireAdmin, async (req, res) => {
   }
 
   try {
-    // Confirma que o serviço existe
     const servico = await pool.query('SELECT id FROM services WHERE id = $1', [id]);
     if (servico.rows.length === 0) {
       return res.status(404).json({ message: 'Serviço não encontrado' });
     }
 
-    // Confirma que o usuário existe e é funcionária
+    // Confirma que o usuário existe e é funcionária OU a dona (admin)
     const funcionaria = await pool.query(
-      `SELECT id FROM users WHERE id = $1 AND role = 'funcionaria'`,
+      `SELECT id FROM users WHERE id = $1 AND role IN ('funcionaria', 'admin')`,
       [funcionaria_id]
     );
     if (funcionaria.rows.length === 0) {
-      return res.status(404).json({ message: 'Funcionária não encontrada' });
+      return res.status(404).json({ message: 'Profissional não encontrada' });
     }
 
     const result = await pool.query(
@@ -164,7 +163,7 @@ router.post('/:id/funcionarias', requireAdmin, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(409).json({ message: 'Funcionária já vinculada a esse serviço' });
+      return res.status(409).json({ message: 'Profissional já vinculada a esse serviço' });
     }
 
     res.status(201).json(result.rows[0]);
